@@ -5,8 +5,7 @@ from pprint import pprint
 
 router = DefaultRouter()
 router.register('post', PostViewSet, basename='post')
-router.register('add_score', AddScoreViewSet, basename='add-score')
-
+router.register('score', AddScoreViewSet, basename='score')
 
 urlpatterns = [
     path('', include(router.urls)),
