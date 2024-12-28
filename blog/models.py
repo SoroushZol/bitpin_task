@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 
 # Post model
 class Post(models.Model):
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, unique=True)
     content = models.TextField()
     average_score = models.DecimalField(max_digits=3, decimal_places=2,  default=0.0)  # To store the average score
     score_count = models.IntegerField(default=0)  # To store the number of scores
