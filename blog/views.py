@@ -4,11 +4,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.mixins import ListModelMixin, CreateModelMixin, UpdateModelMixin, RetrieveModelMixin
 from rest_framework.filters import SearchFilter, OrderingFilter
-from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import PostFilter
 from rest_framework.response import Response
 from .models import Post, Score, User
+from .pagination import PostPagination
 from .serializers import PostListSerializer, PostDetailSerializer, ScoreSerializer
 from django.shortcuts import get_object_or_404
 
@@ -20,6 +20,7 @@ class PostViewSet(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, ListMo
     queryset = Post.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = PostFilter
+    pagination_class = PostPagination
     search_fields = ['title', 'content']
     ordering_fields = ['average_score', 'score_count']
 
