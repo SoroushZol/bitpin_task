@@ -1,3 +1,4 @@
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -32,11 +33,17 @@ class Post(models.Model):
 class Score(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="scores")
-    score = models.IntegerField()  # Should be between 0 and 5
+    score = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)])  # Should be between 0 and 5
     last_update = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('user', 'post')  # Prevent duplicate ratings by the same user on the same post
+        constraints = [
+            # Prevent duplicate ratings by the same user on the same post
+            models.UniqueConstraint(fields=['user', 'post'], name='unique_user_post')
+        ]
+        indexes = [
+            models.Index(fields=['user', 'post']),  # Optimize lookups
+        ]
 
     def __str__(self):
         return f"Score {self.score} by {self.user.username} for {self.post.title}"
