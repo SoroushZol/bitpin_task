@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import transaction, models
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import GenericViewSet
@@ -32,6 +32,19 @@ class PostViewSet(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, ListMo
     def get_serializer_context(self):
         return {'request': self.request}
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # If the user is authenticated, annotate the user's score onto each post
+        request = self.request
+        if request and request.user.is_authenticated:
+            user_id = request.user.id
+            # Use Prefetch to fetch related scores for the current user
+            queryset = queryset.prefetch_related(
+                models.Prefetch('scores', queryset=Score.objects.filter(user_id=user_id), to_attr='user_score')
+            )
+
+        return queryset
+
 
 class AddScoreViewSet(CreateModelMixin, UpdateModelMixin, GenericViewSet):
     """
@@ -40,22 +53,25 @@ class AddScoreViewSet(CreateModelMixin, UpdateModelMixin, GenericViewSet):
     serializer_class = ScoreSerializer
     permission_classes = [IsAuthenticated]
 
-    @transaction.atomic
-    def create(self, request, *args, **kwargs):
-        """
-        Add a score to a post.
-        """
-        score_data = ScoreSerializer(data=request.data)
-        score_data.is_valid(raise_exception=True)
+    def get_queryset(self):
+        return Score.objects.filter(user=self.request.user)
 
-        user = get_object_or_404(User, pk=score_data.validated_data['user'])
-        post = get_object_or_404(Post, pk=score_data.validated_data['post'])
+    def get_serializer_context(self):
+        return {'request': self.request}
 
-        score_instance, created = Score.objects.get_or_create(user=user, post=post)
-        score_instance.score = score_data.validated_data['score']
-        score_instance.save()
+    def perform_create(self, serializer):
+        post = serializer.validated_data['post']
+        new_score = serializer.validated_data['score']
+        with transaction.atomic():
+            serializer.save()
+            post.calculate_average(new_score)
+            post.save()
 
-        post.calculate_average(score_instance.score)
-        post.save()
-
-        return Response({'message': 'Score added successfully!'}, status=status.HTTP_201_CREATED)
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        post = instance.post
+        new_score = serializer.validated_data['score']
+        with transaction.atomic():
+            serializer.save()
+            post.calculate_average(new_score)
+            post.save()
