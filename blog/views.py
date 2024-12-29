@@ -1,16 +1,14 @@
 from django.db import transaction, models
-from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.mixins import ListModelMixin, CreateModelMixin, UpdateModelMixin, RetrieveModelMixin
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import PostFilter
-from rest_framework.response import Response
-from .models import Post, Score, User
+from .models import Post, Score
 from .pagination import PostPagination
+from .redis_client import redis_client
 from .serializers import PostListSerializer, PostDetailSerializer, ScoreSerializer
-from django.shortcuts import get_object_or_404
 
 
 class PostViewSet(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, ListModelMixin, GenericViewSet):
@@ -63,15 +61,18 @@ class AddScoreViewSet(CreateModelMixin, UpdateModelMixin, GenericViewSet):
         post = serializer.validated_data['post']
         new_score = serializer.validated_data['score']
         with transaction.atomic():
+            # Update partial aggregates in Redis
+            # we can keep track of two fields: the total sum of scores and count
+            redis_key = f"post:{post.id}:scores"
+            redis_client.hincrby(redis_key, "sum", new_score)
+            redis_client.hincrby(redis_key, "count", 1)
             serializer.save()
-            post.calculate_average(new_score)
-            post.save()
 
     def perform_update(self, serializer):
         instance = self.get_object()
         post = instance.post
         new_score = serializer.validated_data['score']
         with transaction.atomic():
+            redis_key = f"post:{post.id}:scores"
+            redis_client.hincrby(redis_key, "sum", new_score - instance.score)
             serializer.save()
-            post.calculate_average(new_score)
-            post.save()

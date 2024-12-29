@@ -7,26 +7,11 @@ from django.contrib.auth.models import User
 class Post(models.Model):
     title = models.CharField(max_length=255, unique=True)
     content = models.TextField()
-    average_score = models.DecimalField(max_digits=3, decimal_places=2,  default=0.0)  # To store the average score
+    average_score = models.DecimalField(max_digits=3, decimal_places=2,  default=2.5)  # To store the average score
     score_count = models.IntegerField(default=0)  # To store the number of scores
 
     def __str__(self):
         return self.title
-
-    def calculate_average(self, new_score):
-        """
-        Dynamically calculate the average score when a new score is added.
-        """
-        total_score = self.average_score * self.score_count + new_score
-        self.score_count += 1
-        self.average_score = total_score / self.score_count
-
-    def update_average_from_cache(self, total_weighted_score, total_weight, score_count):
-        """
-        Update the average score and count from the cache syncing process.
-        """
-        self.average_score = total_weighted_score / total_weight if total_weight > 0 else 0
-        self.score_count += score_count
 
 
 # Score model
@@ -42,7 +27,7 @@ class Score(models.Model):
             models.UniqueConstraint(fields=['user', 'post'], name='unique_user_post')
         ]
         indexes = [
-            models.Index(fields=['user', 'post']),  # Optimize lookups
+            models.Index(fields=['user', 'post', 'last_update']),  # Optimize lookups
         ]
 
     def __str__(self):
