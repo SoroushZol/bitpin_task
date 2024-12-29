@@ -1,6 +1,11 @@
 from celery import shared_task
-from .models import BlogPost
+from django.db.models.functions.datetime import Extract
+
+from .models import BlogPost, Score
 from .redis_client import redis_client
+from django.db.models import Count, Avg, F
+from django.db.models.functions import Floor
+from django.db import transaction
 
 
 @shared_task
@@ -44,8 +49,6 @@ def aggregate_scores():
             print(f'Nothing to aggregate for post_id={post_id}')
             continue
 
-
-
         # Retrieve the existing BlogPost from DB
         try:
             post = BlogPost.objects.get(id=post_id)
@@ -81,3 +84,39 @@ def aggregate_scores():
         redis_client.delete(key)
 
     return "Aggregation complete."
+
+
+@shared_task
+def daily_score_aggregation():
+    """
+    Runs once a day:
+      - For each Post, group all Score records by 2-minute buckets based on last_update.
+    """
+    # Retrieve all posts (or filter as needed)
+    all_posts = BlogPost.objects.all()
+
+    for post in all_posts:
+        # Group the scores for this post into 2-minute intervals
+        buckets = (
+            Score.objects.filter(post=post).annotate(
+                epoch=Extract('last_update'), time_bucket=Floor(F('epoch') / 120.0)
+            ).values('time_bucket').annotate(bucket_avg=Avg('score'), bucket_count=Count('score')))
+
+        # If there are no scores, set defaults
+        total_count = sum(b['bucket_count'] for b in buckets)
+        if total_count == 0:
+            post.average_score = 0
+            post.score_count = 0
+            post.save()
+            continue
+
+        total_sum = sum(b['bucket_avg'] for b in buckets)
+        total_avg = total_sum / len(buckets)
+
+        # Save results to the Post
+        with transaction.atomic():
+            post.average_score = round(total_avg, 2)
+            post.score_count = total_count
+            post.save()
+
+    return "Daily score aggregation update is completed."
