@@ -1,5 +1,5 @@
 from celery import shared_task
-from .models import Post
+from .models import BlogPost
 from .redis_client import redis_client
 
 
@@ -7,7 +7,7 @@ from .redis_client import redis_client
 def aggregate_scores():
     """
     Aggregates partial scores from Redis for each post,
-    and updates the Post table in bulk.
+    and updates the BlogPost table in bulk.
     """
 
     cursor = 0
@@ -18,38 +18,49 @@ def aggregate_scores():
         if cursor == 0:
             break
 
+    print(f"Found {len(keys)} keys to aggregate.")
+
     # We'll parse each key => post_id
     for key in keys:
-        # Example key format: "post:123:scores"
+        # Example key format: "post:1:scores"
         try:
             post_id = int(key.split(":")[1])
         except (IndexError, ValueError):
-            # Skip malformed keys
+            print(f"Skipping malformed key: {key}")
             continue
 
         # Grab the "sum" and "count" from Redis
         data = redis_client.hgetall(key)
         # data should look like {"sum": "<some_value>", "count": "<some_value>"}
         if not data or "sum" not in data or "count" not in data:
+            print(f"Skipping key with missing data: {key}")
             continue
 
+        print(f"Aggregating scores for post_id={post_id}")
         new_sum = int(data["sum"])
         new_count = int(data["count"])
 
-        if new_count == 0:
-            # Nothing to aggregate
+        if new_count == 0 and new_sum == 0:
+            print(f'Nothing to aggregate for post_id={post_id}')
             continue
 
-        # Retrieve the existing Post from DB
+
+
+        # Retrieve the existing BlogPost from DB
         try:
-            post = Post.objects.get(id=post_id)
-        except Post.DoesNotExist:
-            # Clean up Redis if post doesn't exist
+            post = BlogPost.objects.get(id=post_id)
+        except BlogPost.DoesNotExist:
+            print(f"Clean up Redis duo to post doesn't exist")
             redis_client.delete(key)
             continue
 
         # Compute the average of the new scores
-        new_avg = new_sum / new_count
+        if new_count == 0:
+            # in case to update an old score
+            new_avg = new_sum
+        else:
+            new_avg = new_sum / new_count
+            new_count = 1
 
         # Merge with existing post average using Weighted Average
         # Weighted average = (old_avg * old_count + new_avg * 1) / (old_count + 1)
@@ -59,9 +70,9 @@ def aggregate_scores():
         old_count = post.score_count
 
         # Weighted average of old and new
-        new_weighted_avg = ((old_avg * old_count) + (new_avg * new_count)) / old_count + 1
+        new_weighted_avg = ((old_avg * old_count) + new_avg) / (old_count + new_count)
 
-        # Update the Post fields
+        # Update the BlogPost fields
         post.average_score = round(new_weighted_avg, 2)
         post.score_count = old_count + new_count
         post.save()
