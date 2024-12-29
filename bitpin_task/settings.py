@@ -155,7 +155,7 @@ CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_BEAT_SCHEDULE = {
     'aggregate-scores-every-2-minutes': {
         'task': 'blog.tasks.aggregate_scores',
-        'schedule': 120.0,  # every 120 seconds = 2 minutes
+        'schedule': 30.0,  # every 120 seconds = 2 minutes
     },
 }
 

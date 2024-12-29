@@ -1,10 +1,10 @@
 from django_filters.rest_framework import FilterSet
-from .models import Post
+from .models import BlogPost
 
 
-class PostFilter(FilterSet):
+class BlogPostFilter(FilterSet):
     class Meta:
-        model = Post
+        model = BlogPost
         fields = {
             'average_score': ['gt', 'lt'],
             'score_count': ['gt', 'lt'],

@@ -1,9 +1,9 @@
 from django.contrib import admin
-from .models import Post, Score, User
+from .models import BlogPost, Score
 
 
-@admin.register(Post)
-class PostAdmin(admin.ModelAdmin):
+@admin.register(BlogPost)
+class BlogPostAdmin(admin.ModelAdmin):
     list_display = ('title', 'average_score', 'score_count')
     search_fields = ('title', 'content')
 

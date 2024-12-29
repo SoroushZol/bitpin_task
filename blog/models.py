@@ -3,8 +3,8 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
-# Post model
-class Post(models.Model):
+# BlogPost model
+class BlogPost(models.Model):
     title = models.CharField(max_length=255, unique=True)
     content = models.TextField()
     average_score = models.DecimalField(max_digits=3, decimal_places=2,  default=2.5)  # To store the average score
@@ -17,7 +17,7 @@ class Post(models.Model):
 # Score model
 class Score(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="scores")
+    post = models.ForeignKey(BlogPost, on_delete=models.CASCADE, related_name="scores")
     score = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)])  # Should be between 0 and 5
     last_update = models.DateTimeField(auto_now=True)
 

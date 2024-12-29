@@ -4,28 +4,28 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.mixins import ListModelMixin, CreateModelMixin, UpdateModelMixin, RetrieveModelMixin
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import PostFilter
-from .models import Post, Score
-from .pagination import PostPagination
+from .filters import BlogPostFilter
+from .models import BlogPost, Score
+from .pagination import BlogPostPagination
 from .redis_client import redis_client
-from .serializers import PostListSerializer, PostDetailSerializer, ScoreSerializer
+from .serializers import BlogPostListSerializer, BlogPostDetailSerializer, ScoreSerializer
 
 
-class PostViewSet(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, ListModelMixin, GenericViewSet):
+class BlogPostViewSet(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, ListModelMixin, GenericViewSet):
     """
     A viewset for creating, updating, retrieving, and listing posts
     """
-    queryset = Post.objects.all()
+    queryset = BlogPost.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_class = PostFilter
-    pagination_class = PostPagination
+    filterset_class = BlogPostFilter
+    pagination_class = BlogPostPagination
     search_fields = ['title', 'content']
     ordering_fields = ['average_score', 'score_count']
 
     def get_serializer_class(self):
         if self.action == 'list':
-            return PostListSerializer
-        return PostDetailSerializer
+            return BlogPostListSerializer
+        return BlogPostDetailSerializer
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -75,4 +75,5 @@ class AddScoreViewSet(CreateModelMixin, UpdateModelMixin, GenericViewSet):
         with transaction.atomic():
             redis_key = f"post:{post.id}:scores"
             redis_client.hincrby(redis_key, "sum", new_score - instance.score)
+            redis_client.hincrby(redis_key, "count", 0)
             serializer.save()
