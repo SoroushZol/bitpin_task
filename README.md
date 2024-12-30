@@ -74,7 +74,7 @@
 ## **Enhancement Strategy**
 
 ### **Challenge 1: Handling High Traffic**
-The server needed to handle approximately \(1000\) requests per second from users adding scores to blog posts. Each new score update required recalculating the average score and score count for the respective post. Querying and recalculating these values directly from the database for each request would have caused significant latency and load.
+The server needed to handle approximately 1000 requests per second from users adding scores to blog posts. Each new score update required recalculating the average score and score count for the respective post. Querying and recalculating these values directly from the database for each request would have caused significant latency and load.
 
 **Solution:** To optimize performance, two additional columns, `average_score` and `score_count`, were added to the `BlogPost` table. These columns store the aggregated values and eliminate the need to retrieve all related scores and recalculate the average and count during each request. This optimization significantly reduced database queries and improved response times.
 
@@ -82,24 +82,24 @@ The server needed to handle approximately \(1000\) requests per second from user
 Short-term emotional bursts of user activity could lead to drastic changes in a blog post's average score. To ensure that these fluctuations did not disproportionately affect the main average score, a **rolling average (moving average)** method was implemented.
 
 **Solution:**
-1. Incoming scores are grouped into time-based windows, each representing \(2\)-minute intervals.
+1. Incoming scores are grouped into time-based windows, each representing 2-minute intervals.
 2. For each window, the average score is calculated independently.
 3. The rolling average is then computed over these windows, providing a smoothed value that reflects long-term trends without being overly influenced by short-term anomalies.
 
 **Example Calculation:**
-- Consider \(4\) chunks of scores, each representing \(2\)-minute intervals:
-  \[
-  (4, 3, 2, 5), \quad (4, 3, 1), \quad (0, 1, 0, 0, 0, 1, 1, 1, 0, 1), \quad (2, 3)
-  \]
+- Consider 4 chunks of scores, each representing 2-minute intervals:
+  - (4, 3, 2, 5)
+  - (4, 3, 1)
+  - (0, 1, 0, 0, 0, 1, 1, 1, 0, 1)
+  - (2, 3)
 - The average scores for each chunk are:
-  \[
-  3.5, \quad 2.66, \quad 0.5, \quad 2.5
-  \]
+  - 3.5
+  - 2.66
+  - 0.5
+  - 2.5
 - The overall rolling average becomes:
-  \[
-  \frac{3.5 + 2.66 + 0.5 + 2.5}{4} = 2.29
-  \]
-- In contrast, a simple average of all scores directly would yield \(1.68\), which does not account for the anomaly in the third chunk.
+  - (3.5 + 2.66 + 0.5 + 2.5) / 4 = 2.29
+- In contrast, a simple average of all scores directly would yield 1.68, which does not account for the anomaly in the third chunk.
 
 #### **Implementation Strategy:**
 1. All new scores are saved in the `Score` table in the MySQL database and pushed to Redis for temporary storage.
