@@ -3,6 +3,14 @@ from rest_framework import serializers
 from blog.models import BlogPost, Score
 
 
+class ScoreSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    class Meta:
+        model = Score
+        fields = ['user', 'post', 'score', 'last_update']
+
+
 class BlogPostListSerializer(serializers.ModelSerializer):
     user_score = serializers.SerializerMethodField()
     detail_url = serializers.HyperlinkedIdentityField(view_name='post-detail', lookup_field='pk')
@@ -21,7 +29,7 @@ class BlogPostListSerializer(serializers.ModelSerializer):
 
         # Fetch the user's score for this post, if it exists
         score = next((s for s in obj.user_score if s.user_id == user.id), None)
-        return score.score if score else None
+        return ScoreSerializer(score).data if score else {}
 
 
 class BlogPostDetailSerializer(serializers.ModelSerializer):
@@ -31,11 +39,3 @@ class BlogPostDetailSerializer(serializers.ModelSerializer):
 
     average_score = serializers.ReadOnlyField()
     score_count = serializers.ReadOnlyField()
-
-
-class ScoreSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Score
-        fields = ['user', 'post', 'score', 'last_update']
-
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
