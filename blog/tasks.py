@@ -77,7 +77,7 @@ def aggregate_scores():
 
         # Update the BlogPost fields
         post.average_score = round(new_weighted_avg, 2)
-        post.score_count = old_count + new_count
+        post.score_count = old_count + int(data["count"])
         post.save()
 
         # 6) Clear or reset the partial aggregates in Redis so that next time we only process new data

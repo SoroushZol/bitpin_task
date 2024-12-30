@@ -7,7 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .filters import BlogPostFilter
 from .models import BlogPost, Score
 from .pagination import BlogPostPagination
-from .redis_client import redis_client
+from .redis_client import redis_client, _key
 from .serializers import BlogPostListSerializer, BlogPostDetailSerializer, ScoreSerializer
 
 
@@ -63,7 +63,7 @@ class AddScoreViewSet(CreateModelMixin, UpdateModelMixin, GenericViewSet):
         with transaction.atomic():
             # Update partial aggregates in Redis
             # we can keep track of two fields: the total sum of scores and count
-            redis_key = f"post:{post.id}:scores"
+            redis_key = _key.format(post.id)
             redis_client.hincrby(redis_key, "sum", new_score)
             redis_client.hincrby(redis_key, "count", 1)
             serializer.save()
@@ -73,7 +73,7 @@ class AddScoreViewSet(CreateModelMixin, UpdateModelMixin, GenericViewSet):
         post = instance.post
         new_score = serializer.validated_data['score']
         with transaction.atomic():
-            redis_key = f"post:{post.id}:scores"
+            redis_key = _key.format(post.id)
             redis_client.hincrby(redis_key, "sum", new_score - instance.score)
             redis_client.hincrby(redis_key, "count", 0)
             serializer.save()
